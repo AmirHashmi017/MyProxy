@@ -23,12 +23,25 @@ app.options('*', (req, res) => {
 });
 
 // Proxy endpoint
-app.use('/proxy', async (req, res) => {
+app.use('/proxy', express.json(), async (req, res) => {
     try {
         const targetUrl = req.url.slice(1); // Remove the leading slash
+        const fullUrl = `https://api.duffel.com/${targetUrl}`;
+
+        // Log request details for debugging
+        console.log('Request Method:', req.method);
+        console.log('Request URL:', fullUrl);
+        console.log('Request Headers:', {
+            'Content-Type': req.headers['content-type'],
+            'Authorization': req.headers['authorization'] || `Bearer ${process.env.DUFFEL_TEST_API_KEY}`,
+            'Duffel-Version': 'v2',
+        });
+        console.log('Request Body:', req.body);
+
+        // Forward the request to Duffel API
         const response = await axios({
             method: req.method,
-            url: `https://api.duffel.com/${targetUrl}`,
+            url: fullUrl,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': req.headers['authorization'] || `Bearer ${process.env.DUFFEL_TEST_API_KEY}`,
@@ -36,12 +49,25 @@ app.use('/proxy', async (req, res) => {
             },
             data: req.body,
         });
+
+        // Send the Duffel API's response back to the client
         res.status(response.status).json(response.data);
     } catch (error) {
         console.error('Proxy error:', error.message);
+
+        // Log the full error response from Duffel API (if available)
+        if (error.response) {
+            console.error('Duffel API error response:', {
+                status: error.response.status,
+                statusText: error.response.statusText,
+                data: error.response.data,
+            });
+        }
+
+        // Forward the Duffel API's error response to the client
         res.status(error.response?.status || 500).json({
             error: 'Proxy request failed',
-            details: error.message,
+            details: error.response?.data || error.message,
         });
     }
 });
