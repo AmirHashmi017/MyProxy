@@ -28,7 +28,7 @@ app.use('/proxy', async (req, res) => {
         const targetUrl = req.url.slice(1); // Remove the leading slash
         const response = await axios({
             method: req.method,
-            url: `https://api.duffel.com${targetUrl}`,
+            url: `https://api.duffel.com/${targetUrl}`,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': req.headers['authorization'] || `Bearer ${process.env.DUFFEL_TEST_API_KEY}`,
