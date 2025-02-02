@@ -1,31 +1,45 @@
-const corsAnywhere = require('cors-anywhere');
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
 
-const host = '0.0.0.0';
+const app = express();
 const port = process.env.PORT || 8080;
 
-const server = corsAnywhere.createServer({
-    originWhitelist: [], // Allow all origins
-    requireHeader: ['origin', 'x-requested-with'],
-    removeHeaders: ['cookie', 'cookie2'],
-});
+// CORS configuration
+app.use(cors({
+    origin: 'https://vercel-deployment-client-topaz.vercel.app', // Allow your frontend origin
+    methods: ['GET', 'POST', 'OPTIONS'], // Allow these methods
+    allowedHeaders: ['Content-Type', 'Authorization', 'Duffel-Version'], // Allow these headers
+    credentials: true, // Allow credentials
+}));
 
-// Explicitly handle OPTIONS requests for preflight
-server.on('request', (req, res) => {
-    if (req.method === 'OPTIONS') {
-        // Set CORS headers for preflight requests
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Duffel-Version');
-        res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
-        res.writeHead(204); // No content for preflight
-        res.end();
-        return;
+// Handle preflight requests
+app.options('*', cors()); // Enable preflight for all routes
+
+// Proxy endpoint
+app.use('/proxy', async (req, res) => {
+    try {
+        const targetUrl = req.url.slice(1); // Remove the leading slash
+        const response = await axios({
+            method: req.method,
+            url: `https://api.duffel.com${targetUrl}`,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': req.headers['authorization'] || `Bearer ${process.env.DUFFEL_TEST_API_KEY}`,
+                'Duffel-Version': 'v2',
+            },
+            data: req.body,
+        });
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        console.error('Proxy error:', error.message);
+        res.status(error.response?.status || 500).json({
+            error: 'Proxy request failed',
+            details: error.message,
+        });
     }
-
-    // Forward all other requests to the cors-anywhere handler
-    server.emit('request', req, res);
 });
 
-server.listen(port, host, () => {
-    console.log(`CORS Anywhere proxy running on ${host}:${port}`);
+app.listen(port, () => {
+    console.log(`Custom proxy running on port ${port}`);
 });
