@@ -5,7 +5,7 @@ const axios = require('axios');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// CORS configuration
+// Enable CORS for all routes
 app.use(cors({
     origin: 'https://vercel-deployment-client-topaz.vercel.app', // Allow your frontend origin
     methods: ['GET', 'POST', 'OPTIONS'], // Allow these methods
@@ -13,8 +13,14 @@ app.use(cors({
     credentials: true, // Allow credentials
 }));
 
-// Handle preflight requests
-app.options('*', cors()); // Enable preflight for all routes
+// Handle preflight requests explicitly
+app.options('*', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', 'https://vercel-deployment-client-topaz.vercel.app');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Duffel-Version');
+    res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+    res.status(204).end(); // No content for preflight
+});
 
 // Proxy endpoint
 app.use('/proxy', async (req, res) => {
